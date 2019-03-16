@@ -37,8 +37,10 @@ def get_data(subset='train'):
 
 def score_solution():
     # Ask the solution for the model pipeline.
-    import solution
-    pipeline = solution.get_pipeline()
+    # import solution
+    from solution.model import get_pipeline
+    #pipeline = solution.get_pipeline()
+    pipeline = get_pipeline()
     error_message = 'Your `solution.get_pipeline` implementation should ' \
         'return an `sklearn.pipeline.Pipeline`.'
     assert isinstance(pipeline, sklearn.pipeline.Pipeline), error_message
