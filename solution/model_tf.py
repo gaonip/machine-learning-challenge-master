@@ -5,7 +5,7 @@ Created on Fri Mar 15 23:15:27 2019
 @author: zhangka
 """
 
-import seaborn as sns
+#import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -15,7 +15,7 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
 
-from sklearn.base import BaseEstimator, TransformerMixin 
+from sklearn.base import BaseEstimator, TransformerMixin, ClassifierMixin
 from pandas.api.types import CategoricalDtype
 
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
@@ -23,6 +23,9 @@ from sklearn.metrics import classification_report, confusion_matrix
 
 from sklearn.externals import joblib
 import os
+
+import tensorflow as tf
+from tensorflow import keras
 
 
 class ColumnsSelector(BaseEstimator, TransformerMixin):
@@ -112,15 +115,35 @@ class CategoricalEncoder(BaseEstimator, TransformerMixin):
         
         return pd.get_dummies(X_copy, drop_first=self.dropFirst)
 
+# ToDO
+#class KerasWrapper(BaseEstimator, ClassifierMixin):
+#    """
+#    """
+#    def __init__(self, optimizer='adam', dropout=0.2, kernel_initializer='uniform'):
+#        self.dropout = dropout
+#        self.optimizer = optimizer
+#        self.kernel_initializer = kernel_initializer
+#        
+#    def fit(self, X, y=None):
+#        model = keras.Sequential()
+#        model.add(keras.layers.Dense(units=64,activation='relu', 
+#                                     kernel_initializer=self.kernel_initializer, 
+#                                     input_dim=97))
+#        model.add(keras.layers.Dropout(self.dropout))
+#        model.add(keras.layers.Dense(1, activation='sigmoid',
+#                                     kernel_initializer = self.kernel_initializer))
+#        model.compile(loss='binary_crossentropy',optimizer=optimizer, metrics=['acc'])
+#        return self
+    
 
 # Plot the confusion matrix and export as png file
-def plot_CFM(y_test, y_pred, filename):
-    fig = plt.figure()
-    cfm = confusion_matrix(y_test, y_pred)
-    sns.heatmap(cfm, annot=True)
-    plt.xlabel('Predicted classes')
-    plt.ylabel('Actual classes')
-    fig.savefig("exports/" + filename, bbox_inches='tight')
+#def plot_CFM(y_test, y_pred, filename):
+#    fig = plt.figure()
+#    cfm = confusion_matrix(y_test, y_pred)
+#    sns.heatmap(cfm, annot=True)
+#    plt.xlabel('Predicted classes')
+#    plt.ylabel('Actual classes')
+#    fig.savefig("exports/" + filename, bbox_inches='tight')
 
 # Plot the ROC curve and export as png file
 def plot_ROC(y_test, y_pred, roc_auc, filename):
@@ -154,10 +177,26 @@ def get_pipeline():
     
     # Create a pipeline of transformers and estimator/
     pipeline_full = Pipeline([('pipeline_processed', pipeline_processed),
-                              ('model_lr', LogisticRegression(random_state=42))],
-                                memory="/tmp")
+                              ('model_keras', keras.wrappers.scikit_learn.KerasClassifier(build_fn=create_model,
+                                                              batch_size=10,
+                                                              epochs=50))],
+                                memory="/tmp") # ('model_keras', model_keras)
     
     return pipeline_full
+    
+
+# Create a keras model
+def create_model(optimizer='adam',dropout=0.2, kernel_initializer='uniform'):
+    model = keras.Sequential()
+    model.add(keras.layers.Dense(units=64,activation='relu', 
+                                 kernel_initializer=kernel_initializer, 
+                                 input_dim=97))
+    model.add(keras.layers.Dropout(dropout))
+    model.add(keras.layers.Dense(1, activation='sigmoid',
+                                 kernel_initializer = kernel_initializer))
+    print(model.summary())
+    model.compile(loss='binary_crossentropy',optimizer=optimizer, metrics=['acc'])
+    return model
     
 
 if __name__ == '__main__':
@@ -169,8 +208,8 @@ if __name__ == '__main__':
     # Get the pipeline
     pipeline_full = get_pipeline()
 
-    # Run the preprocessing with transformations followed by fitting the estimator
-    pipeline_full.fit(X_training, y_training)
+    #Run the preprocessing with transformations followed by fitting the estimator
+    pipeline_full.fit(X_training, y_training)    
     
     # For the evaluation set
     y_val_pred = pipeline_full.predict(X_val)
@@ -186,20 +225,24 @@ if __name__ == '__main__':
     print("baseline AUC score: {0:.2f} %".format(100 * roc_auc))  
 
     # Check what cross validation score gives.
-    scores = cross_val_score(pipeline_full, X_training, y_training, cv=5)
+    scores = cross_val_score(pipeline_full, X_training, y_training, cv=5) # TODO doesnt work on neural net
     print("baseline LR model cross-validation score: {0:.2f} %".format(100*np.mean(scores))) 
     
     #  Lets use gridsearch to tune the hyperparameters
-    param_range = list(range(1,10))
-    param_range_fl = [1.0, 0.5, 0.1]
 
-    grid_params_lr = [{'model_lr__penalty':['l1', 'l2'],
-                'model_lr__C':param_range_fl}]
     
-    gs_lr = GridSearchCV(estimator=pipeline_full,
-                  param_grid=grid_params_lr,
-                  scoring='roc_auc',
-                  cv=10)
+    grid_params_nn = [{'model_keras__batch_size': [25, 32],
+              'model_keras__epochs': [40, 100]}]
+    
+    
+    gs_nn = GridSearchCV(estimator = pipeline_full,
+                       param_grid = grid_params_nn,
+                       scoring = 'roc_auc',
+                       cv = 10)
+    
+    gs_nn.fit(X_training, y_training)    
+
+    
     # Best params
     print('\nbest params: \n', gs_lr.best_params_)
     #Best score on training data

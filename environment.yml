@@ -1,4 +1,4 @@
-name: machine-learning-challenge-env
+name: ML-challenge
 channels:
  - defaults
  - conda-forge
@@ -7,5 +7,6 @@ dependencies:
  - pandas
  - python=3.6
  - scikit-learn=0.20
- - pip:
-   - tensorflow
+ - tensorflow
+ - matplotlib
+ - seaborn
