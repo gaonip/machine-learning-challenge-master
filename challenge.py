@@ -37,10 +37,9 @@ def get_data(subset='train'):
 
 def score_solution():
     # Ask the solution for the model pipeline.
-    # import solution
-    from solution.model_tf import get_pipeline
-    #pipeline = solution.get_pipeline()
-    pipeline = get_pipeline()
+    from solution.return_pipeline import get_pipeline
+    #Default model is 'logistic_regression', but also 'neural_net' is accepted.
+    pipeline = get_pipeline(model='logistic_regression') 
     error_message = 'Your `solution.get_pipeline` implementation should ' \
         'return an `sklearn.pipeline.Pipeline`.'
     assert isinstance(pipeline, sklearn.pipeline.Pipeline), error_message
@@ -62,3 +61,4 @@ def score_solution():
 
 if __name__ == '__main__':
     print(score_solution())
+

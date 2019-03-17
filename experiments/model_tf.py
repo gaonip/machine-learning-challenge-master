@@ -13,7 +13,7 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
+from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score, KFold
 
 from sklearn.base import BaseEstimator, TransformerMixin, ClassifierMixin
 from pandas.api.types import CategoricalDtype
@@ -26,6 +26,7 @@ import os
 
 import tensorflow as tf
 from tensorflow import keras
+
 
 
 class ColumnsSelector(BaseEstimator, TransformerMixin):
@@ -179,18 +180,20 @@ def get_pipeline():
     pipeline_full = Pipeline([('pipeline_processed', pipeline_processed),
                               ('model_keras', keras.wrappers.scikit_learn.KerasClassifier(build_fn=create_model,
                                                               batch_size=10,
-                                                              epochs=50))],
+                                                              epochs=50,
+                                                              shuffle=True,
+                                                              input_dim=97))],
                                 memory="/tmp") # ('model_keras', model_keras)
     
     return pipeline_full
     
 
 # Create a keras model
-def create_model(optimizer='adam',dropout=0.2, kernel_initializer='uniform'):
+def create_model(input_dim, optimizer='adam',dropout=0.2, kernel_initializer='uniform'):
     model = keras.Sequential()
-    model.add(keras.layers.Dense(units=64,activation='relu', 
+    model.add(keras.layers.Dense(units=49,activation='relu', 
                                  kernel_initializer=kernel_initializer, 
-                                 input_dim=97))
+                                 input_dim=input_dim))
     model.add(keras.layers.Dropout(dropout))
     model.add(keras.layers.Dense(1, activation='sigmoid',
                                  kernel_initializer = kernel_initializer))
@@ -225,12 +228,12 @@ if __name__ == '__main__':
     print("baseline AUC score: {0:.2f} %".format(100 * roc_auc))  
 
     # Check what cross validation score gives.
-    scores = cross_val_score(pipeline_full, X_training, y_training, cv=5) # TODO doesnt work on neural net
+    kfold = KFold(n_splits=10, shuffle=True, random_state=42)
+    scores = cross_val_score(pipeline_full, X_training, y_training, cv=kfold) # TODO doesnt work on neural net
     print("baseline LR model cross-validation score: {0:.2f} %".format(100*np.mean(scores))) 
     
     #  Lets use gridsearch to tune the hyperparameters
 
-    
     grid_params_nn = [{'model_keras__batch_size': [25, 32],
               'model_keras__epochs': [40, 100]}]
     
@@ -241,12 +244,11 @@ if __name__ == '__main__':
                        cv = 10)
     
     gs_nn.fit(X_training, y_training)    
-
     
     # Best params
-    print('\nbest params: \n', gs_lr.best_params_)
+    print('\nbest params: \n', gs_nn.best_params_)
     #Best score on training data
-    print('Best training accuracy: %.3f' %gs_lr.best_score_)
+    print('Best training accuracy: %.3f' %gs_nn.best_score_)
     
     # Save to file in the current working directory
     pkl_filename = "baseline_model.pkl"  
