@@ -43,4 +43,3 @@ If you really want to make an impression, try your hand at these stretch goals:
 
 Good luck!
 
--- radix.ai
